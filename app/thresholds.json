@@ -1,0 +1,35 @@
+{
+  "pump": {
+    "manual": "pump",
+    "sensors": {
+      "temp_c": {"label": "Bearing temperature", "unit": "C", "warn_max": 85, "critical_max": 95, "manual_section": 1},
+      "vibration_mm_s": {"label": "Vibration", "unit": "mm/s", "warn_max": 4.5, "critical_max": 7.0, "manual_section": 1},
+      "pressure_bar": {"label": "Discharge pressure", "unit": "bar", "min_ok": 4, "warn_max": 6, "manual_section": 1}
+    }
+  },
+  "motor": {
+    "manual": "motor",
+    "sensors": {
+      "temp_c": {"label": "Winding temperature", "unit": "C", "warn_max": 120, "critical_max": 140, "manual_section": 1},
+      "vibration_mm_s": {"label": "Vibration", "unit": "mm/s", "warn_max": 3.5, "critical_max": 6.0, "manual_section": 1},
+      "current_dev_pct": {"label": "Current deviation from rating", "unit": "%", "abs": true, "warn_max": 10, "critical_max": 25, "manual_section": 1}
+    }
+  },
+  "compressor": {
+    "manual": "compressor",
+    "sensors": {
+      "temp_c": {"label": "Discharge air temperature", "unit": "C", "warn_max": 110, "critical_max": 120, "manual_section": 1},
+      "pressure_bar": {"label": "Discharge pressure", "unit": "bar", "min_ok": 7, "warn_max": 8, "manual_section": 1},
+      "oil_pressure_bar": {"label": "Oil pressure", "unit": "bar", "min_ok": 2, "warn_max": 4, "manual_section": 1},
+      "vibration_mm_s": {"label": "Vibration", "unit": "mm/s", "warn_max": 5.0, "critical_max": 8.0, "manual_section": 1}
+    }
+  },
+  "conveyor": {
+    "manual": "conveyor",
+    "sensors": {
+      "temp_c": {"label": "Gearbox temperature", "unit": "C", "warn_max": 95, "critical_max": 110, "manual_section": 1},
+      "current_dev_pct": {"label": "Drive current deviation from rating", "unit": "%", "abs": true, "warn_max": 10, "critical_max": 25, "manual_section": 1},
+      "speed_dev_pct": {"label": "Belt speed deviation", "unit": "%", "abs": true, "warn_max": 5, "critical_max": 10, "manual_section": 1}
+    }
+  }
+}
