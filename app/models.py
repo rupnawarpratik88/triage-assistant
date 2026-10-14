@@ -42,6 +42,7 @@ class Finding(Base):
     origin: Mapped[str] = mapped_column(String(20))
     text: Mapped[str] = mapped_column(Text)
     source: Mapped[str] = mapped_column(String(100))  # e.g. "pump:3", "event:1", "sensor:temp_c"
+    severity: Mapped[str | None] = mapped_column(String(20), nullable=True)  # critical/warning/ok/data_quality/info
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
     report: Mapped[Report] = relationship(back_populates="findings")
 
