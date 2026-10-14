@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Report #{{ report.id }}{% endblock %}
+{% block content %}
+<h2>Report #{{ report.id }}: {{ report.equipment.type|capitalize }} {{ report.equipment.identifier }}</h2>
+<p class="muted">Submitted {{ report.created_at.strftime("%Y-%m-%d %H:%M") }} UTC</p>
+
+<h3>Issue description</h3>
+<p>{{ report.description }}</p>
+
+<h3>Recent operating events</h3>
+{% if events %}
+<ol>
+  {% for e in events %}<li><span class="tag">event:{{ loop.index }}</span> {{ e }}</li>{% endfor %}
+</ol>
+{% else %}
+<p class="muted">None provided.</p>
+{% endif %}
+
+{% set flags = report.findings|selectattr("severity", "equalto", "data_quality")|list %}
+{% set checks = report.findings|rejectattr("severity", "equalto", "data_quality")|list %}
+
+<h3>Data quality flags</h3>
+{% if flags %}
+  {% for f in flags %}<div class="item data_quality"><span class="tag">{{ f.source }}</span> {{ f.text }}</div>{% endfor %}
+{% else %}
+  <p class="muted">No missing, invalid or conflicting data detected.</p>
+{% endif %}
+
+<h3>Observations: deterministic threshold checks</h3>
+{% if checks %}
+  {% for f in checks %}<div class="item {{ f.severity }}"><span class="tag">{{ f.source }}</span> <b>{{ f.severity|upper }}</b> {{ f.text }}</div>{% endfor %}
+{% else %}
+  <p class="muted">No checks ran.</p>
+{% endif %}
+
+<h3>AI analysis</h3>
+<div class="placeholder">Not run yet. (Added in the next step: possible causes, follow-up questions, inspection steps, priority and draft work order, all with citations.)</div>
+{% endblock %}

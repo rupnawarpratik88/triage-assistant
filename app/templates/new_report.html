@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}New report{% endblock %}
+{% block content %}
+<h2>Report an equipment problem</h2>
+{% if errors %}
+<div class="errors"><ul>{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul></div>
+{% endif %}
+<form method="post" action="/reports">
+  <div class="grid">
+    <div>
+      <label>Equipment type</label>
+      <select name="equipment_type">
+        {% for t in types %}<option value="{{ t }}" {% if values.get('equipment_type') == t %}selected{% endif %}>{{ t|capitalize }}</option>{% endfor %}
+      </select>
+    </div>
+    <div>
+      <label>Equipment identifier</label>
+      <input name="identifier" placeholder="e.g. P-101" value="{{ values.get('identifier', '') }}">
+    </div>
+  </div>
+
+  <label>Issue description</label>
+  <textarea name="description" rows="4" placeholder="What is wrong? What did you see, hear or smell?">{{ values.get('description', '') }}</textarea>
+
+  <label>Recent operating events (one per line)</label>
+  <textarea name="recent_events" rows="4" placeholder="e.g. Restarted after maintenance yesterday&#10;Load increased to 90% this morning">{{ values.get('recent_events', '') }}</textarea>
+
+  <h3>Sensor readings (optional)</h3>
+  <p class="muted">Leave blank if not available. Only readings relevant to the equipment type are checked.</p>
+  <div class="grid">
+    {% for key, label in sensor_labels.items() %}
+    <div>
+      <label>{{ label }}</label>
+      <input name="{{ key }}" value="{{ values.get(key, '') }}">
+    </div>
+    {% endfor %}
+  </div>
+
+  <button type="submit">Submit report</button>
+</form>
+{% endblock %}

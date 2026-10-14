@@ -1,0 +1,38 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>{% block title %}Triage Assistant{% endblock %}</title>
+<style>
+  body { font-family: Arial, sans-serif; margin: 0; background: #f5f6f8; color: #222; }
+  header { background: #1f3a5f; color: #fff; padding: 12px 24px; display: flex; gap: 24px; align-items: center; }
+  header a { color: #cfe3ff; text-decoration: none; }
+  .notice { background: #fff4d6; border-bottom: 1px solid #e6cf8a; padding: 8px 24px; font-size: 13px; }
+  main { max-width: 860px; margin: 24px auto; background: #fff; padding: 24px; border-radius: 8px; }
+  label { display: block; margin-top: 12px; font-weight: bold; font-size: 14px; }
+  input, select, textarea { width: 100%; padding: 8px; margin-top: 4px; box-sizing: border-box; }
+  button { margin-top: 16px; padding: 10px 18px; background: #1f3a5f; color: #fff; border: 0; border-radius: 4px; cursor: pointer; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
+  .muted { color: #777; }
+  .errors { background: #fde2e2; border: 1px solid #e29a9a; padding: 8px 16px; border-radius: 4px; }
+  .item { padding: 8px 12px; margin: 6px 0; border-left: 5px solid #999; background: #fafafa; }
+  .item.critical { border-color: #c62828; background: #fdecec; }
+  .item.warning { border-color: #ef9a00; background: #fff6e0; }
+  .item.ok { border-color: #2e7d32; background: #edf7ee; }
+  .item.data_quality { border-color: #6a1b9a; background: #f5ecf9; }
+  .item.info { border-color: #607d8b; background: #eef2f4; }
+  .tag { font-family: monospace; font-size: 12px; background: #e8e8e8; padding: 1px 6px; border-radius: 3px; }
+  .placeholder { border: 1px dashed #aaa; padding: 12px; color: #666; border-radius: 4px; }
+</style>
+</head>
+<body>
+<header>
+  <b>Equipment Maintenance Triage Assistant</b>
+  <a href="/">New report</a>
+</header>
+<div class="notice">Decision support only. This system never controls equipment and never approves maintenance work automatically. A technician must review and approve.</div>
+<main>
+{% block content %}{% endblock %}
+</main>
+</body>
+</html>
