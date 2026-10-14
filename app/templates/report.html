@@ -33,6 +33,18 @@
   <p class="muted">No checks ran.</p>
 {% endif %}
 
+<h3>Retrieved manual sections</h3>
+{% if report.retrieval_error %}
+  <div class="errors"><b>Retrieval failed:</b> {{ report.retrieval_error }}
+  The threshold checks above are still valid. AI analysis needs manual evidence, so it will not run.</div>
+{% elif report.retrieved %}
+  {% for c in report.retrieved %}
+  <div class="item info"><span class="tag">{{ c.id }}</span> <b>{{ c.title }}</b> <span class="muted">(score {{ c.score }})</span><br>{{ c.text }}</div>
+  {% endfor %}
+{% else %}
+  <p class="muted">Nothing retrieved.</p>
+{% endif %}
+
 <h3>AI analysis</h3>
 <div class="placeholder">Not run yet. (Added in the next step: possible causes, follow-up questions, inspection steps, priority and draft work order, all with citations.)</div>
 {% endblock %}
