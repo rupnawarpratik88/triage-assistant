@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from . import models
+from .ai import AIError, analyze
 from .db import Base, engine, get_db
 from .retrieval import RetrievalError, retrieve
 from .rules import SENSOR_LABELS, THRESHOLDS, check_sensors
@@ -19,6 +20,14 @@ logger = logging.getLogger("triage")
 Base.metadata.create_all(engine)
 app = FastAPI(title="Equipment Maintenance Triage Assistant")
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
+
+
+def _events(report):
+    return [e.strip() for e in (report.recent_events or "").split("\n") if e.strip()]
+
+
+def _redirect(report_id):
+    return RedirectResponse(f"/reports/{report_id}", status_code=303)
 
 
 @app.get("/health")
@@ -104,7 +113,67 @@ async def create_report(request: Request, db: Session = Depends(get_db)):
 
     db.add(models.AuditLog(entity="report", entity_id=report.id, action="created", actor="technician"))
     db.commit()
-    return RedirectResponse(f"/reports/{report.id}", status_code=303)
+    return _redirect(report.id)
+
+
+@app.post("/reports/{report_id}/analyze")
+def analyze_report(report_id: int, db: Session = Depends(get_db)):
+    report = db.get(models.Report, report_id)
+    if report is None:
+        raise HTTPException(status_code=404, detail="Report not found")
+    if report.ai_status == "ok":
+        return _redirect(report_id)
+
+    def fail(message):
+        report.ai_status = "failed"
+        report.ai_error = message
+        db.add(models.AuditLog(entity="report", entity_id=report.id, action="ai_analysis_failed",
+                               actor="ai", detail={"error": message}))
+        db.commit()
+        return _redirect(report_id)
+
+    if report.retrieval_error or not report.retrieved:
+        return fail("AI analysis needs manual evidence, but retrieval failed for this report.")
+
+    observations = [{"severity": f.severity, "text": f.text, "source": f.source}
+                    for f in report.findings if f.origin == "rule"]
+    try:
+        result = analyze(report.equipment.type, report.equipment.identifier, report.description,
+                         _events(report), observations, report.retrieved)
+    except AIError as exc:
+        logger.warning("report %s: AI analysis failed: %s", report.id, exc)
+        return fail(str(exc))
+    except Exception as exc:
+        logger.exception("report %s: unexpected AI error", report.id)
+        return fail(f"Unexpected AI error: {exc.__class__.__name__}")
+
+    analysis = result["analysis"]
+    for cause in analysis.possible_causes:
+        db.add(models.Finding(
+            report_id=report.id, kind="possible_cause", origin="ai",
+            text=cause.text, source=",".join(cause.citations), severity=None,
+        ))
+    report.ai_output = {
+        "model": result["model"],
+        "follow_up_questions": [q.model_dump() for q in analysis.follow_up_questions],
+        "inspection_steps": [s.model_dump() for s in analysis.inspection_steps],
+        "priority": result["priority"],
+    }
+    report.priority = result["priority"]["level"]
+    report.ai_status = "ok"
+    report.ai_error = None
+    order = models.WorkOrder(
+        report_id=report.id, title=result["work_order_title"], body=result["work_order_body"],
+        priority=result["priority"]["level"], status="draft",
+    )
+    db.add(order)
+    db.flush()
+    db.add(models.AuditLog(entity="report", entity_id=report.id, action="ai_analysis_ok", actor="ai",
+                           detail={"model": result["model"]}))
+    db.add(models.AuditLog(entity="work_order", entity_id=order.id, action="draft_created", actor="ai"))
+    db.commit()
+    logger.info("report %s: AI analysis ok, draft work order %s", report.id, order.id)
+    return _redirect(report_id)
 
 
 @app.get("/reports/{report_id}")
@@ -112,8 +181,7 @@ def show_report(report_id: int, request: Request, db: Session = Depends(get_db))
     report = db.get(models.Report, report_id)
     if report is None:
         raise HTTPException(status_code=404, detail="Report not found")
-    events = [e.strip() for e in (report.recent_events or "").split("\n") if e.strip()]
-    return templates.TemplateResponse(request, "report.html", {"report": report, "events": events})
+    return templates.TemplateResponse(request, "report.html", {"report": report, "events": _events(report)})
 
 
 @app.get("/api/reports/{report_id}")
@@ -125,12 +193,20 @@ def report_json(report_id: int, db: Session = Depends(get_db)):
         "id": report.id,
         "equipment": {"type": report.equipment.type, "identifier": report.equipment.identifier},
         "description": report.description,
-        "recent_events": [e.strip() for e in (report.recent_events or "").split("\n") if e.strip()],
+        "recent_events": _events(report),
         "sensors": report.sensors,
         "retrieved": report.retrieved,
         "retrieval_error": report.retrieval_error,
+        "ai_status": report.ai_status,
+        "ai_error": report.ai_error,
+        "priority": report.priority,
+        "ai_output": report.ai_output,
         "findings": [
             {"kind": f.kind, "origin": f.origin, "severity": f.severity, "text": f.text, "source": f.source}
             for f in report.findings
+        ],
+        "work_orders": [
+            {"id": w.id, "title": w.title, "status": w.status, "priority": w.priority, "body": w.body}
+            for w in report.work_orders
         ],
     }
