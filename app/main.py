@@ -1,3 +1,4 @@
+import logging
 import math
 from pathlib import Path
 
@@ -9,7 +10,11 @@ from sqlalchemy.orm import Session
 
 from . import models
 from .db import Base, engine, get_db
+from .retrieval import RetrievalError, retrieve
 from .rules import SENSOR_LABELS, THRESHOLDS, check_sensors
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+logger = logging.getLogger("triage")
 
 Base.metadata.create_all(engine)
 app = FastAPI(title="Equipment Maintenance Triage Assistant")
@@ -78,11 +83,25 @@ async def create_report(request: Request, db: Session = Depends(get_db)):
     db.add(report)
     db.flush()
 
-    for item in check_sensors(etype, sensors or None, desc):
+    # 1) deterministic checks (always run, no AI)
+    observations = check_sensors(etype, sensors or None, desc)
+    for item in observations:
         db.add(models.Finding(
             report_id=report.id, kind="observation", origin="rule",
             text=item["text"], source=item["source"], severity=item["severity"],
         ))
+
+    # 2) manual retrieval (failure is shown to the user, never hidden)
+    try:
+        report.retrieved = retrieve(etype, desc, events, observations)
+        logger.info("report %s: retrieved %d manual sections", report.id, len(report.retrieved))
+    except RetrievalError as exc:
+        report.retrieval_error = str(exc)
+        logger.warning("report %s: retrieval failed: %s", report.id, exc)
+    except Exception as exc:  # unexpected failure, still shown clearly
+        report.retrieval_error = f"Unexpected retrieval error: {exc}"
+        logger.exception("report %s: unexpected retrieval error", report.id)
+
     db.add(models.AuditLog(entity="report", entity_id=report.id, action="created", actor="technician"))
     db.commit()
     return RedirectResponse(f"/reports/{report.id}", status_code=303)
@@ -108,6 +127,8 @@ def report_json(report_id: int, db: Session = Depends(get_db)):
         "description": report.description,
         "recent_events": [e.strip() for e in (report.recent_events or "").split("\n") if e.strip()],
         "sensors": report.sensors,
+        "retrieved": report.retrieved,
+        "retrieval_error": report.retrieval_error,
         "findings": [
             {"kind": f.kind, "origin": f.origin, "severity": f.severity, "text": f.text, "source": f.source}
             for f in report.findings
