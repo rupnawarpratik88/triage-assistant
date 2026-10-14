@@ -25,6 +25,9 @@ class Report(Base):
     sensors: Mapped[dict | None] = mapped_column(JSON, nullable=True)  # optional readings
     ai_status: Mapped[str] = mapped_column(String(20), default="pending")  # pending/ok/failed
     ai_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    retrieved: Mapped[list | None] = mapped_column(JSON, nullable=True)  # manual sections used
+    retrieval_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    ai_output: Mapped[dict | None] = mapped_column(JSON, nullable=True)  # follow-ups, inspection steps
     priority: Mapped[str | None] = mapped_column(String(20), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
     equipment: Mapped[Equipment] = relationship(back_populates="reports")
