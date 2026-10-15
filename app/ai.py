@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import re
+import time
 from pathlib import Path
 from typing import Literal
 
@@ -165,6 +166,30 @@ def build_work_order_body(equipment_type, identifier, analysis, level):
     return "\n".join(lines)
 
 
+RETRY_DELAYS = (2, 5)  # seconds to wait before retrying temporary errors (429, 503, timeouts)
+
+
+def _post_with_retry(url, key, body):
+    attempts = len(RETRY_DELAYS) + 1
+    for i in range(attempts):
+        last = i == attempts - 1
+        try:
+            resp = httpx.post(url, headers={"x-goog-api-key": key}, json=body, timeout=60)
+        except httpx.TimeoutException:
+            if last:
+                raise AIError("The AI service timed out. Try again.")
+            logger.warning("AI request timed out, retrying (%d/%d)", i + 1, attempts - 1)
+            time.sleep(RETRY_DELAYS[i])
+            continue
+        except httpx.HTTPError as exc:
+            raise AIError(f"Could not reach the AI service ({exc.__class__.__name__}).")
+        if resp.status_code in (429, 503) and not last:
+            logger.warning("AI service returned %s, retrying (%d/%d)", resp.status_code, i + 1, attempts - 1)
+            time.sleep(RETRY_DELAYS[i])
+            continue
+        return resp
+
+
 def call_llm(system, prompt):
     """One Gemini call. Returns raw text. Raises AIError with a user-readable message."""
     key = os.environ.get("GEMINI_API_KEY")
@@ -176,12 +201,7 @@ def call_llm(system, prompt):
         "contents": [{"role": "user", "parts": [{"text": prompt}]}],
         "generationConfig": {"responseMimeType": "application/json", "temperature": 0.2},
     }
-    try:
-        resp = httpx.post(url, headers={"x-goog-api-key": key}, json=body, timeout=60)
-    except httpx.TimeoutException:
-        raise AIError("The AI service timed out. Try again.")
-    except httpx.HTTPError as exc:
-        raise AIError(f"Could not reach the AI service ({exc.__class__.__name__}).")
+    resp = _post_with_retry(url, key, body)
     if resp.status_code == 429:
         raise AIError("AI rate limit reached (free tier). Wait a minute and try again.")
     if resp.status_code in (400, 401, 403):
