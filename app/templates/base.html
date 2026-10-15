@@ -12,6 +12,7 @@
   label { display: block; margin-top: 12px; font-weight: bold; font-size: 14px; }
   input, select, textarea { width: 100%; padding: 8px; margin-top: 4px; box-sizing: border-box; }
   button { margin-top: 16px; padding: 10px 18px; background: #1f3a5f; color: #fff; border: 0; border-radius: 4px; cursor: pointer; }
+  button.danger { background: #b23a3a; }
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
   .muted { color: #777; }
   .errors { background: #fde2e2; border: 1px solid #e29a9a; padding: 8px 16px; border-radius: 4px; }
@@ -22,13 +23,17 @@
   .item.data_quality { border-color: #6a1b9a; background: #f5ecf9; }
   .item.info { border-color: #607d8b; background: #eef2f4; }
   .tag { font-family: monospace; font-size: 12px; background: #e8e8e8; padding: 1px 6px; border-radius: 3px; }
+  .badge { font-size: 11px; font-weight: bold; padding: 1px 6px; border-radius: 3px; background: #e3e8f0; }
+  .badge.possible { background: #fff0c2; }
   .placeholder { border: 1px dashed #aaa; padding: 12px; color: #666; border-radius: 4px; }
+  pre.wo { white-space: pre-wrap; background: #fafafa; border: 1px solid #ddd; padding: 12px; border-radius: 4px; font-family: inherit; }
 </style>
 </head>
 <body>
 <header>
   <b>Equipment Maintenance Triage Assistant</b>
   <a href="/">New report</a>
+  <a href="/equipment">History</a>
 </header>
 <div class="notice">Decision support only. This system never controls equipment and never approves maintenance work automatically. A technician must review and approve.</div>
 <main>

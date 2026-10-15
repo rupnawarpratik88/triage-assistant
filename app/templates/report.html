@@ -1,14 +1,9 @@
 {% extends "base.html" %}
 {% block title %}Report #{{ report.id }}{% endblock %}
 {% block content %}
-<style>
-  .badge { font-size: 11px; font-weight: bold; padding: 1px 6px; border-radius: 3px; background: #e3e8f0; }
-  .badge.possible { background: #fff0c2; }
-  .badge.draft { background: #e3e8f0; }
-  pre.wo { white-space: pre-wrap; background: #fafafa; border: 1px solid #ddd; padding: 12px; border-radius: 4px; font-family: inherit; }
-</style>
 <h2>Report #{{ report.id }}: {{ report.equipment.type|capitalize }} {{ report.equipment.identifier }}</h2>
-<p class="muted">Submitted {{ report.created_at.strftime("%Y-%m-%d %H:%M") }} UTC</p>
+<p class="muted">Submitted {{ report.created_at.strftime("%Y-%m-%d %H:%M") }} UTC |
+  <a href="/equipment/{{ report.equipment.identifier }}">Equipment history</a></p>
 
 <h3>Issue description</h3>
 <p>{{ report.description }}</p>
@@ -87,10 +82,11 @@
 
   <h4>Draft work order</h4>
   {% for w in report.work_orders %}
-    <p><b>{{ w.title }}</b> <span class="badge draft">{{ w.status|upper }}</span></p>
+    <p><b>{{ w.title }}</b> <span class="badge">{{ w.status|upper }}</span>
+      <a href="/work-orders/{{ w.id }}">Edit / approve / reject</a></p>
     <pre class="wo">{{ w.body }}</pre>
   {% endfor %}
-  <p class="muted">Editing, approving and rejecting the work order comes in the next step. Nothing is approved automatically.</p>
+  <p class="muted">Nothing is approved automatically. A technician decides on the work order page.</p>
 
 {% else %}
   {% if report.ai_status == "failed" %}
@@ -102,8 +98,22 @@
   {% else %}
     <form method="post" action="/reports/{{ report.id }}/analyze">
       <button type="submit">{% if report.ai_status == "failed" %}Retry AI analysis{% else %}Run AI analysis{% endif %}</button>
-      <span class="muted">Takes about 5-20 seconds. Report text is sent to the AI service.</span>
+      <span class="muted">Takes about 5-30 seconds. Report text is sent to the AI service.</span>
     </form>
   {% endif %}
 {% endif %}
+
+<h3>Confirmed findings (technician only)</h3>
+<p class="muted">Only a technician can record a confirmed finding. AI suggestions stay "possible" until you confirm them here.</p>
+{% for f in report.findings|selectattr("kind", "equalto", "confirmed_finding") %}
+  <div class="item ok"><span class="badge">CONFIRMED</span> {{ f.text }}
+    <span class="muted">{{ f.created_at.strftime("%Y-%m-%d %H:%M") }} UTC</span></div>
+{% else %}
+  <p class="muted">None recorded yet.</p>
+{% endfor %}
+<form method="post" action="/reports/{{ report.id }}/findings">
+  <label>Record a confirmed finding (what you verified on site)</label>
+  <textarea name="text" rows="2"></textarea>
+  <button type="submit">Record confirmed finding</button>
+</form>
 {% endblock %}

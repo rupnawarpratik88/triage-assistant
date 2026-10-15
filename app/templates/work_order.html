@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Work order #{{ wo.id }}{% endblock %}
+{% block content %}
+<h2>Work order #{{ wo.id }} <span class="badge">{{ wo.status|upper }}</span></h2>
+<p><a href="/reports/{{ report.id }}">Report #{{ report.id }}</a> |
+  <a href="/equipment/{{ report.equipment.identifier }}">{{ report.equipment.type|capitalize }} {{ report.equipment.identifier }} history</a></p>
+
+{% if errors %}
+<div class="errors"><ul>{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul></div>
+{% endif %}
+
+{% if wo.status == "draft" %}
+  <p class="muted">AI-drafted work order. Edit it, save, then approve or reject. Nothing is approved automatically.</p>
+  <form method="post" action="/work-orders/{{ wo.id }}/edit">
+    <label>Title</label>
+    <input name="title" value="{{ wo.title }}">
+    <label>Priority</label>
+    <select name="priority">
+      {% for p in priorities %}<option value="{{ p }}" {% if wo.priority == p %}selected{% endif %}>{{ p|capitalize }}</option>{% endfor %}
+    </select>
+    <label>Details</label>
+    <textarea name="body" rows="16">{{ wo.body }}</textarea>
+    <button type="submit">Save changes</button>
+  </form>
+
+  <h3>Decision</h3>
+  <p class="muted">Save your changes first, then decide. Approved and rejected work orders are locked.</p>
+  <form method="post" action="/work-orders/{{ wo.id }}/approve">
+    <label>Note (optional)</label>
+    <input name="note">
+    <button type="submit">Approve</button>
+  </form>
+  <form method="post" action="/work-orders/{{ wo.id }}/reject">
+    <label>Reason (optional)</label>
+    <input name="note">
+    <button type="submit" class="danger">Reject</button>
+  </form>
+{% else %}
+  <p class="muted">This work order is {{ wo.status }} and locked.</p>
+  <h3>{{ wo.title }}</h3>
+  <p>Priority: <b>{{ wo.priority|upper }}</b></p>
+  <pre class="wo">{{ wo.body }}</pre>
+{% endif %}
+
+<h3>History</h3>
+{% for a in audit %}
+  <div class="item info"><span class="tag">{{ a.at.strftime("%Y-%m-%d %H:%M:%S") }}</span>
+    <b>{{ a.action }}</b> by {{ a.actor }}
+    {% if a.detail %}<div class="muted">{{ a.detail|tojson }}</div>{% endif %}</div>
+{% endfor %}
+{% endblock %}

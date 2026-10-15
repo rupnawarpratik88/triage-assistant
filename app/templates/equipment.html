@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}{{ eq.identifier }} history{% endblock %}
+{% block content %}
+<h2>{{ eq.type|capitalize }} {{ eq.identifier }}: history</h2>
+<p class="muted">{{ reports|length }} report(s), newest first. <a href="/equipment">All equipment</a></p>
+{% for r in reports %}
+<div class="item info">
+  <b><a href="/reports/{{ r.id }}">Report #{{ r.id }}</a></b>
+  <span class="muted">{{ r.created_at.strftime("%Y-%m-%d %H:%M") }} UTC</span>
+  {% if r.priority %}<span class="badge">PRIORITY {{ r.priority|upper }}</span>{% endif %}
+  <span class="badge">AI: {{ r.ai_status }}</span><br>
+  {{ r.description }}
+  {% set confirmed = r.findings|selectattr("kind", "equalto", "confirmed_finding")|list %}
+  {% set causes = r.findings|selectattr("kind", "equalto", "possible_cause")|list %}
+  {% set obs = r.findings|selectattr("kind", "equalto", "observation")|list %}
+  <div class="muted">{{ obs|length }} observation(s), {{ causes|length }} possible cause(s), {{ confirmed|length }} confirmed finding(s)</div>
+  {% for f in confirmed %}<div><span class="badge">CONFIRMED</span> {{ f.text }}</div>{% endfor %}
+  {% for w in r.work_orders %}
+    <div>Work order: <a href="/work-orders/{{ w.id }}">{{ w.title }}</a> <span class="badge">{{ w.status|upper }}</span></div>
+  {% endfor %}
+</div>
+{% else %}
+  <p class="muted">No reports yet.</p>
+{% endfor %}
+{% endblock %}
