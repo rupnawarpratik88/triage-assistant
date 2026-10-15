@@ -12,6 +12,7 @@ from . import models
 from .ai import AIError, analyze
 from .db import Base, engine, get_db
 from .retrieval import RetrievalError, retrieve
+from .workflow import router as workflow_router
 from .rules import SENSOR_LABELS, THRESHOLDS, check_sensors
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -19,6 +20,7 @@ logger = logging.getLogger("triage")
 
 Base.metadata.create_all(engine)
 app = FastAPI(title="Equipment Maintenance Triage Assistant")
+app.include_router(workflow_router)
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 
 
