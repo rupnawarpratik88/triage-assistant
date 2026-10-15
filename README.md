@@ -57,7 +57,7 @@ Open http://127.0.0.1:8000 (live demo: https://triage-assistant-dqyq.onrender.co
 | Variable | Purpose |
 |---|---|
 | `GEMINI_API_KEY` | API key for the AI step (required for AI analysis only) |
-| `GEMINI_MODEL` | Model name (default `gemini-2.5-flash`) |
+| `GEMINI_MODEL` | Model name (default `gemini-3.5-flash`) |
 
 Without a key, everything except AI analysis works and the AI step shows a clear error.
 
