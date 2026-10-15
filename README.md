@@ -4,7 +4,7 @@ A web app where a technician reports an equipment problem and gets AI-assisted t
 
 **The AI never controls equipment and never approves work.** Approval and rejection are technician actions only.
 
-Live demo: YOUR-LIVE-URL (free hosting: the first load after idle can take about a minute, and demo data resets on restart)
+Live demo: https://triage-assistant-dqyq.onrender.com/ (free hosting: the first load after idle can take about a minute, and demo data resets on restart)
 
 ## What it does
 
@@ -52,7 +52,7 @@ python scripts/seed.py      # optional demo data
 uvicorn app.main:app --reload
 ```
 
-Open http://127.0.0.1:8000. A free Gemini API key is available from Google AI Studio.
+Open http://127.0.0.1:8000 (live demo: https://triage-assistant-dqyq.onrender.com/). A free Gemini API key is available from Google AI Studio.
 
 | Variable | Purpose |
 |---|---|
