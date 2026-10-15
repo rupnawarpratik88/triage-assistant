@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field, ValidationError
 
 logger = logging.getLogger("triage.ai")
 ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_MODEL = "gemini-2.5-flash"
+DEFAULT_MODEL = "gemini-3.5-flash"
 PRIORITY_ORDER = ["low", "medium", "high", "critical"]
 
 
