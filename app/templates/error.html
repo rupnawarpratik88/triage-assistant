@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}{{ status_code }} {{ title }}{% endblock %}
+{% block content %}
+<h2>{{ title }}</h2>
+<div class="errors">{{ detail }}</div>
+<p><a href="/">New report</a> | <a href="/equipment">History</a></p>
+{% endblock %}

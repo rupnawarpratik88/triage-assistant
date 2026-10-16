@@ -2,20 +2,23 @@
 <html>
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}Triage Assistant{% endblock %}</title>
 <style>
   body { font-family: Arial, sans-serif; margin: 0; background: #f5f6f8; color: #222; }
-  header { background: #1f3a5f; color: #fff; padding: 12px 24px; display: flex; gap: 24px; align-items: center; }
+  header { background: #1f3a5f; color: #fff; padding: 12px 24px; display: flex; gap: 24px; align-items: center; flex-wrap: wrap; }
   header a { color: #cfe3ff; text-decoration: none; }
   .notice { background: #fff4d6; border-bottom: 1px solid #e6cf8a; padding: 8px 24px; font-size: 13px; }
   main { max-width: 860px; margin: 24px auto; background: #fff; padding: 24px; border-radius: 8px; }
   label { display: block; margin-top: 12px; font-weight: bold; font-size: 14px; }
   input, select, textarea { width: 100%; padding: 8px; margin-top: 4px; box-sizing: border-box; }
   button { margin-top: 16px; padding: 10px 18px; background: #1f3a5f; color: #fff; border: 0; border-radius: 4px; cursor: pointer; }
+  button:disabled { background: #8a97a8; cursor: wait; }
   button.danger { background: #b23a3a; }
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
   .muted { color: #777; }
   .errors { background: #fde2e2; border: 1px solid #e29a9a; padding: 8px 16px; border-radius: 4px; }
+  .success { background: #e3f4e6; border: 1px solid #8cc99a; padding: 8px 16px; border-radius: 4px; margin-bottom: 12px; }
   .item { padding: 8px 12px; margin: 6px 0; border-left: 5px solid #999; background: #fafafa; }
   .item.critical { border-color: #c62828; background: #fdecec; }
   .item.warning { border-color: #ef9a00; background: #fff6e0; }
@@ -27,6 +30,7 @@
   .badge.possible { background: #fff0c2; }
   .placeholder { border: 1px dashed #aaa; padding: 12px; color: #666; border-radius: 4px; }
   pre.wo { white-space: pre-wrap; background: #fafafa; border: 1px solid #ddd; padding: 12px; border-radius: 4px; font-family: inherit; }
+  @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } main { margin: 12px; padding: 16px; } }
 </style>
 </head>
 <body>
@@ -37,7 +41,27 @@
 </header>
 <div class="notice">Decision support only. This system never controls equipment and never approves maintenance work automatically. A technician must review and approve.</div>
 <main>
+{% set notices = {
+  "report_created": "Report submitted. Deterministic checks and manual retrieval are done.",
+  "analysis_ok": "AI analysis complete. These are suggestions, not confirmed findings. Review them below.",
+  "finding_recorded": "Confirmed finding recorded.",
+  "wo_saved": "Work order changes saved.",
+  "wo_approved": "Work order approved by technician.",
+  "wo_rejected": "Work order rejected by technician."
+} %}
+{% set n = request.query_params.get("notice") %}
+{% if n and n in notices %}<div class="success">{{ notices[n] }}</div>{% endif %}
 {% block content %}{% endblock %}
 </main>
+<script>
+  document.addEventListener("submit", function (e) {
+    var btn = e.target.querySelector("button[type=submit]");
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = e.target.getAttribute("data-loading") || "Working...";
+    }
+  });
+  window.addEventListener("pageshow", function (e) { if (e.persisted) { location.reload(); } });
+</script>
 </body>
 </html>

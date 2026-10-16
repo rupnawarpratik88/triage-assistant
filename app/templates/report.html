@@ -96,7 +96,7 @@
   {% if report.retrieval_error %}
     <p class="muted">AI analysis is unavailable because retrieval failed.</p>
   {% else %}
-    <form method="post" action="/reports/{{ report.id }}/analyze">
+    <form method="post" action="/reports/{{ report.id }}/analyze" data-loading="Analyzing... this can take up to a minute">
       <button type="submit">{% if report.ai_status == "failed" %}Retry AI analysis{% else %}Run AI analysis{% endif %}</button>
       <span class="muted">Takes about 5-30 seconds. Report text is sent to the AI service.</span>
     </form>
