@@ -12,6 +12,8 @@ from typing import Literal
 import httpx
 from pydantic import BaseModel, Field, ValidationError
 
+from .logging_setup import log_event
+
 logger = logging.getLogger("triage.ai")
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_MODEL = "gemini-3.5-flash"
@@ -174,17 +176,20 @@ def _post_with_retry(url, key, body):
     for i in range(attempts):
         last = i == attempts - 1
         try:
+            started = time.monotonic()
             resp = httpx.post(url, headers={"x-goog-api-key": key}, json=body, timeout=60)
+            log_event(logger, "ai_http_attempt", attempt=i + 1, status_code=resp.status_code,
+                      latency_ms=int((time.monotonic() - started) * 1000), model=model_name())
         except httpx.TimeoutException:
             if last:
                 raise AIError("The AI service timed out. Try again.")
-            logger.warning("AI request timed out, retrying (%d/%d)", i + 1, attempts - 1)
+            log_event(logger, "ai_http_timeout_retry", logging.WARNING, attempt=i + 1, max_retries=attempts - 1)
             time.sleep(RETRY_DELAYS[i])
             continue
         except httpx.HTTPError as exc:
             raise AIError(f"Could not reach the AI service ({exc.__class__.__name__}).")
         if resp.status_code in (429, 503) and not last:
-            logger.warning("AI service returned %s, retrying (%d/%d)", resp.status_code, i + 1, attempts - 1)
+            log_event(logger, "ai_http_retry", logging.WARNING, status_code=resp.status_code, attempt=i + 1, max_retries=attempts - 1)
             time.sleep(RETRY_DELAYS[i])
             continue
         return resp
@@ -228,9 +233,10 @@ def analyze(equipment_type, identifier, description, events, observations, retri
             break
         except AIOutputError as exc:
             last_error = str(exc)
-            logger.warning("AI output rejected (attempt %d): %s", attempt, last_error)
+            log_event(logger, "ai_output_rejected", logging.WARNING, attempt=attempt, reason=last_error)
     if analysis is None:
         raise AIError(f"AI output was rejected after 2 attempts: {last_error}.")
+    log_event(logger, "ai_output_accepted", attempts=attempt, causes=len(analysis.possible_causes))
     level, raised = resolve_priority(analysis.priority.level, observations)
     return {
         "model": model_name(),
