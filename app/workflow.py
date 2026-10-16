@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from . import models
 from .db import get_db
+from .logging_setup import log_event
 
 logger = logging.getLogger("triage.workflow")
 router = APIRouter()
@@ -42,8 +43,8 @@ def _page(request, db, wo, errors=None, status_code=200):
     )
 
 
-def _redirect(wo_id):
-    return RedirectResponse(f"/work-orders/{wo_id}", status_code=303)
+def _redirect(wo_id, notice):
+    return RedirectResponse(f"/work-orders/{wo_id}?notice={notice}", status_code=303)
 
 
 @router.get("/work-orders/{wo_id}")
@@ -68,6 +69,7 @@ async def edit_work_order(wo_id: int, request: Request, db: Session = Depends(ge
     if priority not in PRIORITIES:
         errors.append("Choose a valid priority.")
     if errors:
+        log_event(logger, "work_order_edit_rejected", work_order_id=wo.id, errors=errors)
         return _page(request, db, wo, errors, 400)
     changes = {}
     for field, new in (("title", title), ("body", body), ("priority", priority)):
@@ -77,9 +79,9 @@ async def edit_work_order(wo_id: int, request: Request, db: Session = Depends(ge
             setattr(wo, field, new)
     if changes:
         _audit(db, "work_order", wo.id, "edited", {"changes": changes})
-        logger.info("work order %s edited: %s", wo.id, ", ".join(changes))
     db.commit()
-    return _redirect(wo.id)
+    log_event(logger, "work_order_edited", work_order_id=wo.id, report_id=wo.report_id, fields=sorted(changes))
+    return _redirect(wo.id, "wo_saved")
 
 
 async def _decide(wo_id, request, db, new_status):
@@ -91,8 +93,9 @@ async def _decide(wo_id, request, db, new_status):
     wo.status = new_status
     _audit(db, "work_order", wo.id, new_status, {"note": note} if note else None)
     db.commit()
-    logger.info("work order %s %s by technician", wo.id, new_status)
-    return _redirect(wo.id)
+    log_event(logger, f"work_order_{new_status}", work_order_id=wo.id, report_id=wo.report_id,
+              has_note=bool(note), actor="technician")
+    return _redirect(wo.id, f"wo_{new_status}")
 
 
 @router.post("/work-orders/{wo_id}/approve")
@@ -120,7 +123,8 @@ async def add_confirmed_finding(report_id: int, request: Request, db: Session = 
     db.flush()
     _audit(db, "finding", finding.id, "confirmed_finding_recorded", {"report_id": report.id})
     db.commit()
-    return RedirectResponse(f"/reports/{report.id}", status_code=303)
+    log_event(logger, "confirmed_finding_recorded", report_id=report.id, finding_id=finding.id, actor="technician")
+    return RedirectResponse(f"/reports/{report.id}?notice=finding_recorded", status_code=303)
 
 
 @router.get("/equipment")
