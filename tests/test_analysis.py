@@ -15,7 +15,7 @@ FORM = {
 
 def create(client):
     r = client.post("/reports", data=FORM, follow_redirects=False)
-    return r.headers["location"]
+    return r.headers["location"].split("?")[0]
 
 
 def test_analysis_creates_possible_causes_and_draft_work_order(monkeypatch):
