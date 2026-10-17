@@ -1,36 +1,94 @@
 {% extends "base.html" %}
 {% block title %}Report #{{ report.id }}{% endblock %}
 {% block content %}
+{% set draft = (report.work_orders|selectattr("status", "equalto", "draft")|list)|first %}
+{% set rule_findings = report.findings|selectattr("origin", "equalto", "rule")|list %}
+{% set flags = rule_findings|selectattr("severity", "equalto", "data_quality")|list %}
+{% set checks = rule_findings|rejectattr("severity", "equalto", "data_quality")|list %}
+{% set tech_obs = report.findings|selectattr("origin", "equalto", "technician")|selectattr("kind", "equalto", "observation")|list %}
+{% set reported = tech_obs|map(attribute="source")|list %}
+
 <h2>Report #{{ report.id }}: {{ report.equipment.type|capitalize }} {{ report.equipment.identifier }}</h2>
-<p class="muted">Submitted {{ report.created_at.strftime("%Y-%m-%d %H:%M") }} UTC |
-  <a href="/equipment/{{ report.equipment.identifier }}">Equipment history</a></p>
+<p class="muted">Submitted {{ report.created_at.strftime("%Y-%m-%d %H:%M") }} UTC</p>
+
+<div class="actions">
+  <div class="actions-title">Next steps</div>
+  <div class="actions-row">
+    {% if draft %}
+      <a class="btn" href="/work-orders/{{ draft.id }}">Review &amp; edit work order</a>
+      <form method="post" action="/work-orders/{{ draft.id }}/approve" data-loading="Approving..."
+            onsubmit="return confirm('Approve this work order? It will be locked and can no longer be edited.');">
+        <button type="submit" class="btn-ok">Approve work order</button>
+      </form>
+      <form method="post" action="/work-orders/{{ draft.id }}/reject" data-loading="Rejecting..."
+            onsubmit="return confirm('Reject this draft? It will be locked.');">
+        <button type="submit" class="danger">Reject draft</button>
+      </form>
+    {% elif report.work_orders %}
+      {% set last_order = report.work_orders|last %}
+      <a class="btn" href="/work-orders/{{ last_order.id }}">View work order ({{ last_order.status|upper }})</a>
+    {% elif report.retrieval_error %}
+      <span class="muted">AI analysis is unavailable (no manual evidence). Use the threshold checks and your site safety procedures.</span>
+    {% else %}
+      <a class="btn" href="#ai-analysis">{% if report.ai_status == "failed" %}Retry AI analysis{% else %}Run AI analysis{% endif %}</a>
+    {% endif %}
+    <a class="btn secondary" href="#confirmed">Record confirmed finding</a>
+    <a class="btn secondary" href="/equipment/{{ report.equipment.identifier }}">Equipment history</a>
+    <a class="btn secondary" href="/">New report</a>
+  </div>
+</div>
 
 <h3>Issue description</h3>
-<p>{{ report.description }}</p>
+<p>{{ report.description|sentence }}</p>
 
 <h3>Recent operating events</h3>
 {% if events %}
 <ol>
-  {% for e in events %}<li><span class="tag">event:{{ loop.index }}</span> {{ e }}</li>{% endfor %}
+  {% for e in events %}<li><b>Event {{ loop.index }}:</b> {{ e|sentence }}</li>{% endfor %}
 </ol>
 {% else %}
 <p class="muted">None provided.</p>
 {% endif %}
 
-{% set rule_findings = report.findings|selectattr("origin", "equalto", "rule")|list %}
-{% set flags = rule_findings|selectattr("severity", "equalto", "data_quality")|list %}
-{% set checks = rule_findings|rejectattr("severity", "equalto", "data_quality")|list %}
-
 <h3>Data quality flags</h3>
 {% if flags %}
-  {% for f in flags %}<div class="item data_quality"><span class="tag">{{ f.source }}</span> {{ f.text }}</div>{% endfor %}
+  {% for f in flags %}
+  <div class="item data_quality">
+    <span class="sev sev-data_quality">&#9888; DATA GAP</span>
+    <span class="tag" title="{{ f.source }}">{{ f.source|source_label }}</span>
+    {{ f.text|humanize }}
+    {% if f.source.startswith("sensor:") and f.source != "sensor:none" %}
+    <div class="gap-actions">
+      {% if f.source in reported %}
+        <span class="muted">Sensor issue already reported.</span>
+      {% else %}
+        <form method="post" action="/reports/{{ report.id }}/sensor-issue" data-loading="Saving...">
+          <input type="hidden" name="source" value="{{ f.source }}">
+          <button type="submit" class="small">Report sensor issue</button>
+        </form>
+      {% endif %}
+      <a href="#confirmed">Record manual reading</a>
+    </div>
+    {% endif %}
+  </div>
+  {% endfor %}
 {% else %}
   <p class="muted">No missing, invalid or conflicting data detected.</p>
 {% endif %}
+{% for t in tech_obs %}
+  <div class="item info"><span class="sev sev-info">REPORTED</span> {{ t.text }}
+    <span class="muted">{{ t.created_at.strftime("%Y-%m-%d %H:%M") }} UTC</span></div>
+{% endfor %}
 
 <h3>Observations: deterministic threshold checks</h3>
 {% if checks %}
-  {% for f in checks %}<div class="item {{ f.severity }}"><span class="tag">{{ f.source }}</span> <b>{{ f.severity|upper }}</b> {{ f.text }}</div>{% endfor %}
+  {% for f in checks %}
+  <div class="item {{ f.severity }}">
+    <span class="sev sev-{{ f.severity }}">{% if f.severity == "critical" %}&#9888; CRITICAL{% elif f.severity == "warning" %}&#9888; WARNING{% elif f.severity == "ok" %}OK{% else %}{{ f.severity|upper }}{% endif %}</span>
+    <span class="tag" title="{{ f.source }}">{{ f.source|source_label }}</span>
+    {{ f.text|humanize }}
+  </div>
+  {% endfor %}
 {% else %}
   <p class="muted">No checks ran.</p>
 {% endif %}
@@ -40,28 +98,33 @@
   <div class="errors"><b>Retrieval failed:</b> {{ report.retrieval_error }}
   The threshold checks above are still valid. AI analysis needs manual evidence, so it will not run.</div>
 {% elif report.retrieved %}
+  {% set top = report.retrieved[0].score %}
   {% for c in report.retrieved %}
-  <div class="item info"><span class="tag">{{ c.id }}</span> <b>{{ c.title }}</b> <span class="muted">(score {{ c.score }})</span><br>{{ c.text }}</div>
+  <div class="item info">
+    <span class="tag" title="{{ c.id }}">{{ c.id|source_label }}</span> <b>{{ c.title }}</b>
+    <span class="muted">{% if c.score > 0 and top > 0 %}Relevance: {{ ((c.score / top) * 100)|round|int }}%{% else %}Always shown for safety{% endif %}</span><br>
+    {{ c.text }}
+  </div>
   {% endfor %}
 {% else %}
   <p class="muted">Nothing retrieved.</p>
 {% endif %}
 
-<h3>AI analysis</h3>
+<h3 id="ai-analysis">AI analysis</h3>
 {% if report.ai_status == "ok" and report.ai_output %}
   {% set ai = report.ai_output %}
   <p class="muted">Generated by {{ ai.model }}. Everything below is a suggestion, not a confirmed finding. A technician must verify it.</p>
 
   <h4>Possible causes (unconfirmed)</h4>
   {% for f in report.findings|selectattr("kind", "equalto", "possible_cause") %}
-  <div class="item warning"><span class="badge possible">POSSIBLE</span> {{ f.text }}<br>
-    {% for c in f.source.split(",") %}<span class="tag">{{ c }}</span> {% endfor %}</div>
+  <div class="item warning"><span class="badge possible">POSSIBLE</span> {{ f.text|humanize }}<br>
+    {% for c in f.source.split(",") %}<span class="tag" title="{{ c }}">{{ c|source_label }}</span> {% endfor %}</div>
   {% endfor %}
 
   <h4>Follow-up questions</h4>
   {% if ai.follow_up_questions %}
     {% for q in ai.follow_up_questions %}
-    <div class="item info">{{ q.text }}<br>{% for c in q.citations %}<span class="tag">{{ c }}</span> {% endfor %}</div>
+    <div class="item info">{{ q.text|humanize }}<br>{% for c in q.citations %}<span class="tag" title="{{ c }}">{{ c|source_label }}</span> {% endfor %}</div>
     {% endfor %}
   {% else %}
     <p class="muted">None.</p>
@@ -69,15 +132,15 @@
 
   <h4>Suggested inspection steps</h4>
   {% for s in ai.inspection_steps %}
-  <div class="item info"><b>{{ loop.index }}.</b> {{ s.text }}<br>{% for c in s.citations %}<span class="tag">{{ c }}</span> {% endfor %}</div>
+  <div class="item info"><b>{{ loop.index }}.</b> {{ s.text|humanize }}<br>{% for c in s.citations %}<span class="tag" title="{{ c }}">{{ c|source_label }}</span> {% endfor %}</div>
   {% endfor %}
 
   <h4>Suggested priority</h4>
   <div class="item {% if ai.priority.level in ['high', 'critical'] %}critical{% elif ai.priority.level == 'medium' %}warning{% else %}ok{% endif %}">
     <b>{{ ai.priority.level|upper }}</b>
     {% if ai.priority.raised_by_rules %}<span class="muted">(AI suggested {{ ai.priority.ai_level|upper }}; raised by the deterministic threshold rules)</span>{% endif %}<br>
-    {{ ai.priority.rationale }}<br>
-    {% for c in ai.priority.citations %}<span class="tag">{{ c }}</span> {% endfor %}
+    {{ ai.priority.rationale|humanize }}<br>
+    {% for c in ai.priority.citations %}<span class="tag" title="{{ c }}">{{ c|source_label }}</span> {% endfor %}
   </div>
 
   <h4>Draft work order</h4>
@@ -86,7 +149,7 @@
       <a href="/work-orders/{{ w.id }}">Edit / approve / reject</a></p>
     <pre class="wo">{{ w.body }}</pre>
   {% endfor %}
-  <p class="muted">Nothing is approved automatically. A technician decides on the work order page.</p>
+  <p class="muted">Nothing is approved automatically. A technician decides.</p>
 
 {% else %}
   {% if report.ai_status == "failed" %}
@@ -103,16 +166,16 @@
   {% endif %}
 {% endif %}
 
-<h3>Confirmed findings (technician only)</h3>
-<p class="muted">Only a technician can record a confirmed finding. AI suggestions stay "possible" until you confirm them here.</p>
+<h3 id="confirmed">Confirmed findings (technician only)</h3>
+<p class="muted">Only a technician can record a confirmed finding or a manual reading taken on site. AI suggestions stay "possible" until you confirm them here.</p>
 {% for f in report.findings|selectattr("kind", "equalto", "confirmed_finding") %}
   <div class="item ok"><span class="badge">CONFIRMED</span> {{ f.text }}
     <span class="muted">{{ f.created_at.strftime("%Y-%m-%d %H:%M") }} UTC</span></div>
 {% else %}
   <p class="muted">None recorded yet.</p>
 {% endfor %}
-<form method="post" action="/reports/{{ report.id }}/findings">
-  <label>Record a confirmed finding (what you verified on site)</label>
+<form method="post" action="/reports/{{ report.id }}/findings" data-loading="Saving...">
+  <label>Record a confirmed finding or manual reading (what you verified on site)</label>
   <textarea name="text" rows="2"></textarea>
   <button type="submit">Record confirmed finding</button>
 </form>
