@@ -13,6 +13,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from . import models
 from .ai import AIError, analyze
 from .db import Base, engine, get_db
+from .labels import register_filters
 from .logging_setup import log_event, setup_logging
 from .retrieval import RetrievalError, retrieve
 from .rules import SENSOR_LABELS, THRESHOLDS, check_sensors
@@ -25,6 +26,7 @@ Base.metadata.create_all(engine)
 app = FastAPI(title="Equipment Maintenance Triage Assistant")
 app.include_router(workflow_router)
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
+register_filters(templates)
 
 ERROR_TITLES = {400: "Bad request", 404: "Not found", 409: "Action not allowed"}
 

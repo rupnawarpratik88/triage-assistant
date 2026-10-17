@@ -11,11 +11,13 @@ from sqlalchemy.orm import Session
 
 from . import models
 from .db import get_db
+from .labels import humanize, register_filters
 from .logging_setup import log_event
 
 logger = logging.getLogger("triage.workflow")
 router = APIRouter()
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
+register_filters(templates)
 PRIORITIES = ["low", "medium", "high", "critical"]
 
 
@@ -140,3 +142,30 @@ def equipment_detail(identifier: str, request: Request, db: Session = Depends(ge
         raise HTTPException(status_code=404, detail="Equipment not found")
     reports = sorted(eq.reports, key=lambda r: r.created_at, reverse=True)
     return templates.TemplateResponse(request, "equipment.html", {"eq": eq, "reports": reports})
+
+
+@router.post("/reports/{report_id}/sensor-issue")
+async def report_sensor_issue(report_id: int, request: Request, db: Session = Depends(get_db)):
+    """Technician flags a sensor with missing, invalid or conflicting data as faulty or unavailable."""
+    report = db.get(models.Report, report_id)
+    if report is None:
+        raise HTTPException(status_code=404, detail="Report not found")
+    form = await request.form()
+    source = str(form.get("source", "")).strip()
+    flagged = {f.source for f in report.findings
+               if f.origin == "rule" and f.severity == "data_quality" and f.source.startswith("sensor:")}
+    if source not in flagged:
+        raise HTTPException(status_code=400, detail="That sensor has no data quality flag on this report.")
+    already = any(f.origin == "technician" and f.kind == "observation" and f.source == source
+                  for f in report.findings)
+    if not already:
+        finding = models.Finding(
+            report_id=report.id, kind="observation", origin="technician", source=source, severity="info",
+            text=f"Technician reported a sensor issue: {humanize(source)} is unavailable or unreliable.",
+        )
+        db.add(finding)
+        db.flush()
+        _audit(db, "finding", finding.id, "sensor_issue_reported", {"report_id": report.id, "source": source})
+        db.commit()
+        log_event(logger, "sensor_issue_reported", report_id=report.id, source=source, actor="technician")
+    return RedirectResponse(f"/reports/{report.id}?notice=sensor_reported", status_code=303)
