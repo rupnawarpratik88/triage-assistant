@@ -1,11 +1,23 @@
 {% extends "base.html" %}
 {% block title %}New report{% endblock %}
 {% block content %}
+<section class="hero">
+  <span class="pill">Decision support for technicians</span>
+  <h1>Triage equipment faults in minutes, backed by your manuals.</h1>
+  <p>Report a problem, get deterministic safety checks and cited AI suggestions, then review and approve the work order yourself.</p>
+  <div class="steps">
+    <div class="step on"><span class="circle">1</span> Report the problem</div>
+    <div class="step"><span class="circle">2</span> Threshold checks</div>
+    <div class="step"><span class="circle">3</span> AI triage with citations</div>
+    <div class="step"><span class="circle">4</span> Technician approves</div>
+  </div>
+</section>
+
 <h2>Report an equipment problem</h2>
 {% if errors %}
 <div class="errors"><ul>{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul></div>
 {% endif %}
-<form method="post" action="/reports">
+<form method="post" action="/reports" data-loading="Submitting...">
   <div class="grid">
     <div>
       <label>Equipment type</label>
