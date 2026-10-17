@@ -4,59 +4,83 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}Triage Assistant{% endblock %}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  body { font-family: Arial, sans-serif; margin: 0; background: #f5f6f8; color: #222; font-size: 16px; }
-  .topbar { position: sticky; top: 0; z-index: 50; box-shadow: 0 2px 6px rgba(0,0,0,0.25); }
-  header { background: #1f3a5f; color: #fff; padding: 12px 24px; display: flex; gap: 24px; align-items: center; flex-wrap: wrap; }
-  header a { color: #cfe3ff; text-decoration: none; font-weight: bold; }
-  .notice { background: #ffd966; border-bottom: 3px solid #b8860b; padding: 12px 24px; font-size: 15px; font-weight: bold; color: #3d2f00; }
-  main { max-width: 900px; margin: 24px auto; background: #fff; padding: 24px; border-radius: 8px; }
-  label { display: block; margin-top: 12px; font-weight: bold; font-size: 14px; }
-  input, select, textarea { width: 100%; padding: 8px; margin-top: 4px; box-sizing: border-box; font-size: 16px; }
-  button { margin-top: 16px; padding: 12px 20px; background: #1f3a5f; color: #fff; border: 0; border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: bold; }
+  :root { --ink: #14213d; --accent: #1a56db; --paper: #fbf8f3; --sand: #f3ede2; --line: #e6dccb; }
+  body { font-family: Inter, "Segoe UI", Arial, sans-serif; margin: 0; background: var(--paper); color: var(--ink); font-size: 16px; line-height: 1.5; }
+  .topbar { position: sticky; top: 0; z-index: 50; box-shadow: 0 2px 6px rgba(0,0,0,0.12); }
+  header { background: var(--paper); border-bottom: 1px solid var(--line); padding: 10px 24px; display: flex; gap: 24px; align-items: center; flex-wrap: wrap; }
+  .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--ink); }
+  .brand b { font-size: 18px; letter-spacing: -0.2px; }
+  .brand small { display: block; font-size: 11px; letter-spacing: 1.5px; color: var(--accent); font-weight: 600; text-transform: uppercase; }
+  header nav { margin-left: auto; display: flex; gap: 24px; }
+  header nav a { color: var(--ink); text-decoration: none; font-weight: 500; }
+  header nav a:hover { color: var(--accent); }
+  .notice { background: #ffd966; border-bottom: 3px solid #b8860b; padding: 10px 24px; font-size: 14px; font-weight: 700; color: #3d2f00; }
+  main { max-width: 920px; margin: 24px auto; background: #fff; padding: 28px; border-radius: 14px; border: 1px solid var(--line); }
+  h2, h3 { letter-spacing: -0.2px; }
+  label { display: block; margin-top: 12px; font-weight: 600; font-size: 14px; }
+  input, select, textarea { width: 100%; padding: 10px; margin-top: 4px; box-sizing: border-box; font-size: 16px; font-family: inherit; border: 1px solid #cfc6b6; border-radius: 8px; background: #fff; }
+  input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); border-color: var(--accent); }
+  button { margin-top: 16px; padding: 12px 22px; background: var(--ink); color: #fff; border: 0; border-radius: 999px; cursor: pointer; font-size: 16px; font-weight: 600; font-family: inherit; }
   button:disabled { background: #8a97a8; cursor: wait; }
   button.danger { background: #b23a3a; }
   button.btn-ok { background: #2e7d32; }
-  button.small { margin-top: 0; padding: 4px 10px; font-size: 13px; background: #fff; color: #1f3a5f; border: 1px solid #1f3a5f; }
+  button.small { margin-top: 0; padding: 4px 12px; font-size: 13px; background: #fff; color: var(--ink); border: 1px solid var(--ink); }
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
-  .muted { color: #777; }
-  .errors { background: #fde2e2; border: 1px solid #e29a9a; padding: 8px 16px; border-radius: 4px; }
-  .success { background: #e3f4e6; border: 1px solid #8cc99a; padding: 8px 16px; border-radius: 4px; margin-bottom: 12px; }
-  .item { padding: 8px 12px; margin: 6px 0; border-left: 6px solid #999; background: #fafafa; }
+  .muted { color: #6b7280; }
+  .errors { background: #fde2e2; border: 1px solid #e29a9a; padding: 8px 16px; border-radius: 8px; }
+  .success { background: #e3f4e6; border: 1px solid #8cc99a; padding: 8px 16px; border-radius: 8px; margin-bottom: 12px; }
+  .item { padding: 10px 14px; margin: 8px 0; border-left: 6px solid #999; background: #fafafa; border-radius: 0 8px 8px 0; }
   .item.critical { border-left-width: 10px; border-color: #c62828; background: #fdecec; }
   .item.warning { border-color: #f2b705; background: #fffbe0; }
   .item.ok { border-color: #2e7d32; background: #edf7ee; }
   .item.data_quality { border-color: #e8590c; background: #fff1e6; }
   .item.info { border-color: #607d8b; background: #eef2f4; }
-  .sev { display: inline-block; font-size: 12px; font-weight: bold; padding: 2px 8px; border-radius: 4px; color: #fff; letter-spacing: 0.4px; margin-right: 6px; background: #607d8b; }
+  .sev { display: inline-block; font-size: 12px; font-weight: 700; padding: 2px 9px; border-radius: 999px; color: #fff; letter-spacing: 0.4px; margin-right: 6px; background: #607d8b; }
   .sev-critical { background: #c62828; font-size: 13px; }
   .sev-warning { background: #d98200; }
   .sev-ok { background: #2e7d32; }
   .sev-data_quality { background: #e8590c; }
   .sev-info { background: #607d8b; }
-  .tag { font-size: 12px; background: #e8e8e8; padding: 1px 6px; border-radius: 3px; }
-  .badge { font-size: 11px; font-weight: bold; padding: 1px 6px; border-radius: 3px; background: #e3e8f0; }
+  .tag { font-size: 12px; background: #ece7dc; padding: 1px 8px; border-radius: 999px; }
+  .badge { font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 999px; background: #e3e8f0; }
   .badge.possible { background: #fff0c2; }
-  .actions { border: 2px solid #1f3a5f; background: #f1f5fb; border-radius: 8px; padding: 12px 16px; margin: 12px 0 20px; }
-  .actions-title { font-weight: bold; margin-bottom: 8px; color: #1f3a5f; }
+  .actions { border: 2px solid var(--accent); background: #f1f5fd; border-radius: 12px; padding: 12px 16px; margin: 12px 0 20px; }
+  .actions-title { font-weight: 700; margin-bottom: 8px; color: var(--accent); }
   .actions-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
   .actions form { margin: 0; }
   .actions button { margin-top: 0; }
-  .btn { display: inline-block; padding: 12px 20px; background: #1f3a5f; color: #fff; border-radius: 4px; text-decoration: none; font-weight: bold; }
-  .btn.secondary { background: #fff; color: #1f3a5f; border: 2px solid #1f3a5f; padding: 10px 18px; }
+  .btn { display: inline-block; padding: 12px 22px; background: var(--ink); color: #fff; border-radius: 999px; text-decoration: none; font-weight: 600; }
+  .btn.secondary { background: #fff; color: var(--ink); border: 2px solid var(--ink); padding: 10px 20px; }
   .gap-actions { margin-top: 6px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 13px; }
   .gap-actions form { margin: 0; }
-  .placeholder { border: 1px dashed #aaa; padding: 12px; color: #666; border-radius: 4px; }
-  pre.wo { white-space: pre-wrap; background: #fafafa; border: 1px solid #ddd; padding: 12px; border-radius: 4px; font-family: inherit; }
-  @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } main { margin: 12px; padding: 16px; } }
+  pre.wo { white-space: pre-wrap; background: #fafafa; border: 1px solid #ddd; padding: 12px; border-radius: 8px; font-family: inherit; }
+  /* home page hero */
+  .hero { background: var(--sand); border: 1px solid var(--line); border-radius: 16px; padding: 28px; margin-bottom: 24px; }
+  .pill { display: inline-block; border: 1px solid #2f6f62; color: #1f4f45; background: #e6f2ee; border-radius: 999px; padding: 4px 14px; font-size: 14px; font-weight: 500; }
+  .hero h1 { font-family: "DM Serif Display", Georgia, serif; font-weight: 400; font-size: 40px; line-height: 1.15; margin: 14px 0 10px; letter-spacing: -0.5px; }
+  .hero p { color: #4b5563; max-width: 620px; margin: 0 0 20px; }
+  .steps { display: flex; flex-wrap: wrap; gap: 22px; }
+  .step { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 500; }
+  .circle { width: 34px; height: 34px; border-radius: 50%; border: 2px solid #c9c1b0; background: #fff; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; }
+  .step.on .circle { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .step.on { color: var(--accent); }
+  @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } main { margin: 12px; padding: 16px; } .hero h1 { font-size: 30px; } }
 </style>
 </head>
 <body>
 <div class="topbar">
   <header>
-    <b>Equipment Maintenance Triage Assistant</b>
-    <a href="/">New report</a>
-    <a href="/equipment">History</a>
+    <a class="brand" href="/">
+      <svg width="36" height="36" viewBox="0 0 36 36" aria-hidden="true"><rect width="36" height="36" rx="9" fill="#0f3d3e"/><path d="M10 9h16v5h-5.5v14h-5V14H10z" fill="#f2a900"/></svg>
+      <span><b>Maintenance Triage</b><small>Technician assistant</small></span>
+    </a>
+    <nav>
+      <a href="/">New report</a>
+      <a href="/equipment">History</a>
+    </nav>
   </header>
   <div class="notice">DECISION SUPPORT ONLY. This system never controls equipment and never approves maintenance work automatically. A technician must review and approve.</div>
 </div>
