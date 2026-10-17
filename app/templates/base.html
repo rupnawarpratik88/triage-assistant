@@ -5,46 +5,67 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}Triage Assistant{% endblock %}</title>
 <style>
-  body { font-family: Arial, sans-serif; margin: 0; background: #f5f6f8; color: #222; }
+  body { font-family: Arial, sans-serif; margin: 0; background: #f5f6f8; color: #222; font-size: 16px; }
+  .topbar { position: sticky; top: 0; z-index: 50; box-shadow: 0 2px 6px rgba(0,0,0,0.25); }
   header { background: #1f3a5f; color: #fff; padding: 12px 24px; display: flex; gap: 24px; align-items: center; flex-wrap: wrap; }
-  header a { color: #cfe3ff; text-decoration: none; }
-  .notice { background: #fff4d6; border-bottom: 1px solid #e6cf8a; padding: 8px 24px; font-size: 13px; }
-  main { max-width: 860px; margin: 24px auto; background: #fff; padding: 24px; border-radius: 8px; }
+  header a { color: #cfe3ff; text-decoration: none; font-weight: bold; }
+  .notice { background: #ffd966; border-bottom: 3px solid #b8860b; padding: 12px 24px; font-size: 15px; font-weight: bold; color: #3d2f00; }
+  main { max-width: 900px; margin: 24px auto; background: #fff; padding: 24px; border-radius: 8px; }
   label { display: block; margin-top: 12px; font-weight: bold; font-size: 14px; }
-  input, select, textarea { width: 100%; padding: 8px; margin-top: 4px; box-sizing: border-box; }
-  button { margin-top: 16px; padding: 10px 18px; background: #1f3a5f; color: #fff; border: 0; border-radius: 4px; cursor: pointer; }
+  input, select, textarea { width: 100%; padding: 8px; margin-top: 4px; box-sizing: border-box; font-size: 16px; }
+  button { margin-top: 16px; padding: 12px 20px; background: #1f3a5f; color: #fff; border: 0; border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: bold; }
   button:disabled { background: #8a97a8; cursor: wait; }
   button.danger { background: #b23a3a; }
+  button.btn-ok { background: #2e7d32; }
+  button.small { margin-top: 0; padding: 4px 10px; font-size: 13px; background: #fff; color: #1f3a5f; border: 1px solid #1f3a5f; }
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
   .muted { color: #777; }
   .errors { background: #fde2e2; border: 1px solid #e29a9a; padding: 8px 16px; border-radius: 4px; }
   .success { background: #e3f4e6; border: 1px solid #8cc99a; padding: 8px 16px; border-radius: 4px; margin-bottom: 12px; }
-  .item { padding: 8px 12px; margin: 6px 0; border-left: 5px solid #999; background: #fafafa; }
-  .item.critical { border-color: #c62828; background: #fdecec; }
-  .item.warning { border-color: #ef9a00; background: #fff6e0; }
+  .item { padding: 8px 12px; margin: 6px 0; border-left: 6px solid #999; background: #fafafa; }
+  .item.critical { border-left-width: 10px; border-color: #c62828; background: #fdecec; }
+  .item.warning { border-color: #f2b705; background: #fffbe0; }
   .item.ok { border-color: #2e7d32; background: #edf7ee; }
-  .item.data_quality { border-color: #6a1b9a; background: #f5ecf9; }
+  .item.data_quality { border-color: #e8590c; background: #fff1e6; }
   .item.info { border-color: #607d8b; background: #eef2f4; }
-  .tag { font-family: monospace; font-size: 12px; background: #e8e8e8; padding: 1px 6px; border-radius: 3px; }
+  .sev { display: inline-block; font-size: 12px; font-weight: bold; padding: 2px 8px; border-radius: 4px; color: #fff; letter-spacing: 0.4px; margin-right: 6px; background: #607d8b; }
+  .sev-critical { background: #c62828; font-size: 13px; }
+  .sev-warning { background: #d98200; }
+  .sev-ok { background: #2e7d32; }
+  .sev-data_quality { background: #e8590c; }
+  .sev-info { background: #607d8b; }
+  .tag { font-size: 12px; background: #e8e8e8; padding: 1px 6px; border-radius: 3px; }
   .badge { font-size: 11px; font-weight: bold; padding: 1px 6px; border-radius: 3px; background: #e3e8f0; }
   .badge.possible { background: #fff0c2; }
+  .actions { border: 2px solid #1f3a5f; background: #f1f5fb; border-radius: 8px; padding: 12px 16px; margin: 12px 0 20px; }
+  .actions-title { font-weight: bold; margin-bottom: 8px; color: #1f3a5f; }
+  .actions-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .actions form { margin: 0; }
+  .actions button { margin-top: 0; }
+  .btn { display: inline-block; padding: 12px 20px; background: #1f3a5f; color: #fff; border-radius: 4px; text-decoration: none; font-weight: bold; }
+  .btn.secondary { background: #fff; color: #1f3a5f; border: 2px solid #1f3a5f; padding: 10px 18px; }
+  .gap-actions { margin-top: 6px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 13px; }
+  .gap-actions form { margin: 0; }
   .placeholder { border: 1px dashed #aaa; padding: 12px; color: #666; border-radius: 4px; }
   pre.wo { white-space: pre-wrap; background: #fafafa; border: 1px solid #ddd; padding: 12px; border-radius: 4px; font-family: inherit; }
   @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } main { margin: 12px; padding: 16px; } }
 </style>
 </head>
 <body>
-<header>
-  <b>Equipment Maintenance Triage Assistant</b>
-  <a href="/">New report</a>
-  <a href="/equipment">History</a>
-</header>
-<div class="notice">Decision support only. This system never controls equipment and never approves maintenance work automatically. A technician must review and approve.</div>
+<div class="topbar">
+  <header>
+    <b>Equipment Maintenance Triage Assistant</b>
+    <a href="/">New report</a>
+    <a href="/equipment">History</a>
+  </header>
+  <div class="notice">DECISION SUPPORT ONLY. This system never controls equipment and never approves maintenance work automatically. A technician must review and approve.</div>
+</div>
 <main>
 {% set notices = {
   "report_created": "Report submitted. Deterministic checks and manual retrieval are done.",
   "analysis_ok": "AI analysis complete. These are suggestions, not confirmed findings. Review them below.",
   "finding_recorded": "Confirmed finding recorded.",
+  "sensor_reported": "Sensor issue recorded for this report.",
   "wo_saved": "Work order changes saved.",
   "wo_approved": "Work order approved by technician.",
   "wo_rejected": "Work order rejected by technician."
@@ -55,6 +76,7 @@
 </main>
 <script>
   document.addEventListener("submit", function (e) {
+    if (e.defaultPrevented) { return; }
     var btn = e.target.querySelector("button[type=submit]");
     if (btn) {
       btn.disabled = true;
